@@ -3,19 +3,17 @@ import os
 import re
 import json
 from datetime import datetime
-import pytz
 
-# Kaynak M3U dosyaları
 m3u_sources = [
     ("https://dl.dropbox.com/scl/fi/dj74gt6awxubl4yqoho07/github.m3u?rlkey=m7pzzvk27d94bkfl9a98tluai", "moon"),
     ("https://raw.githubusercontent.com/Lunedor/iptvTR/refs/heads/main/FilmArsiv.m3u", "iptvTR"),
     ("https://raw.githubusercontent.com/Zerk1903/zerkfilm/refs/heads/main/Filmler.m3u", "zerkfilm"),
-    ("https://tinyurl.com/2ao2rans", "powerboard"),
+    ("https://tinyurl.com/2ao2rans","powerboard"),
 ]
 
 birlesik_dosya = "birlesik.m3u"
 kayit_json_dir = "kayit_json"
-kayit_json = os.path.join(kayit_json_dir, "birlesik_links.json")
+ana_kayit_json = os.path.join(kayit_json_dir, "birlesik_links.json")
 
 if not os.path.exists(kayit_json_dir):
     os.makedirs(kayit_json_dir)
@@ -51,42 +49,96 @@ def save_json(data, filename):
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
+def format_tr_date(date_str):
+    d = datetime.strptime(date_str, "%Y-%m-%d")
+    return f"{d.day}.{d.month}.{d.year}"
+
+def format_tr_datehour(date_str):
+    d = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+    return f"{d.day}.{d.month}.{d.year} {d.hour:02d}:{d.minute:02d}"
+
 def ensure_group_title(extinf_line, source_name):
-    if 'group-title' not in extinf_line:
-        extinf_line = extinf_line.replace("#EXTINF:", f"#EXTINF:-1 group-title=\"{source_name}\"", 1)
+    if 'group-title="' not in extinf_line:
+        parts = extinf_line.split(" ", 1)
+        if len(parts) == 2:
+            prefix, rest = parts
+            return f'{prefix} group-title="[{source_name}]" {rest}'
+        else:
+            return f'#EXTINF:-1 group-title="[{source_name}]",'
     return extinf_line
 
-# Saat ayarı Türkiye'ye göre
-now_tr = datetime.now(pytz.timezone("Europe/Istanbul"))
-timestamp = now_tr.strftime("%Y-%m-%d %H:%M:%S")
+def get_original_group_title(extinf_line):
+    m = re.search(r'group-title="([^"]*)"', extinf_line)
+    if m:
+        return m.group(1)
+    return None
 
-birlesik_satirlar = ["#EXTM3U"]
-kayitlar = load_json(kayit_json)
+today = datetime.now().strftime("%Y-%m-%d")
+now_full = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+today_obj = datetime.strptime(today, "%Y-%m-%d")
 
-for url, source in m3u_sources:
-    try:
-        response = requests.get(url, timeout=10)
-        lines = response.text.strip().splitlines()
-        kanallar = parse_m3u_lines(lines)
+ana_link_dict = load_json(ana_kayit_json)
 
-        for (key, extinf, link) in kanallar:
-            extinf = ensure_group_title(extinf, source)
-            birlesik_satirlar.append(extinf)
-            birlesik_satirlar.append(link)
+with open(birlesik_dosya, "w", encoding="utf-8") as outfile:
+    outfile.write("#EXTM3U\n")
+    for m3u_url, source_name in m3u_sources:
+        try:
+            req = requests.get(m3u_url, timeout=20)
+            req.raise_for_status()
+        except Exception as e:
+            print(f"{m3u_url} alınamadı: {e}")
+            continue
 
-            key_str = f"{key[0]}|{key[1]}"
-            kayitlar[key_str] = {
-                "kanal": key[0],
-                "url": key[1],
-                "kaynak": source,
-                "eklenme": timestamp
-            }
+        lines = req.text.splitlines()
+        kanal_list = parse_m3u_lines(lines)
 
-    except Exception as e:
-        print(f"{source} kaynağı indirilemedi: {e}")
+        yeni_kanallar, eski_kanallar = [], []
 
-with open(birlesik_dosya, "w", encoding="utf-8") as f:
-    f.write("\n".join(birlesik_satirlar))
+        for (key, extinf, url) in kanal_list:
+            dict_key = f"{key[0]}|{key[1]}"
+            extinf = ensure_group_title(extinf, source_name)
+            if dict_key in ana_link_dict:
+                ilk_tarih = ana_link_dict[dict_key]["tarih"]
+                ilk_tarih_saat = ana_link_dict[dict_key]["tarih_saat"]
+                eski_kanallar.append((key, extinf, url, ilk_tarih, ilk_tarih_saat))
+            else:
+                ana_link_dict[dict_key] = {"tarih": today, "tarih_saat": now_full}
+                yeni_kanallar.append((key, extinf, url, today, now_full))
 
-save_json(kayitlar, kayit_json)
-print(f"Toplam kanal sayısı: {len(kayitlar)}")
+        # Yeni kanallar [YENİ] grubu
+        yeni_grup_satirlari = []
+        for (key, extinf, url, eklenme_tarihi, eklenme_tarihi_saat) in yeni_kanallar:
+            kanal_adi = key[0]
+            saat_str = format_tr_datehour(eklenme_tarihi_saat)
+            group_title = f"[YENİ] [{source_name}]"
+            kanal_isim = f'{kanal_adi} [{saat_str}]'
+            extinf_clean = re.sub(r'group-title="[^"]*"', f'group-title="{group_title}"', extinf)
+            extinf_clean = re.sub(r',.*', f',{kanal_isim}', extinf_clean)
+            yeni_grup_satirlari.append((extinf_clean, url))
+
+        if yeni_grup_satirlari:
+            outfile.write(f'#EXTINF:-1 group-title="[YENİ] [{source_name}]",\n')
+            for extinf, url in yeni_grup_satirlari:
+                outfile.write(extinf + "\n")
+                outfile.write(url + "\n")
+
+        # Eski kanallar normal gruplar
+        normal_grup_satirlari = []
+        for (key, extinf, url, eklenme_tarihi, eklenme_tarihi_saat) in eski_kanallar:
+            kanal_adi = key[0]
+            tarih_obj = datetime.strptime(eklenme_tarihi, "%Y-%m-%d")
+            original_group = get_original_group_title(extinf)
+
+            if (today_obj - tarih_obj).days >= 7:
+                if original_group and f"[{source_name}]" not in original_group:
+                    new_group_title = f'{original_group}[{source_name}]'
+                else:
+                    new_group_title = source_name
+                extinf_clean = re.sub(r'group-title="[^"]*"', f'group-title="{new_group_title}"', extinf)
+                tarih_str = format_tr_date(eklenme_tarihi)
+                kanal_isim = f'{kanal_adi} [{tarih_str}]'
+            else:
+                # 7 günden azsa hala YENİ grupta göster
+                saat_str = format_tr_datehour(eklenme_tarihi_saat)
+                group_title = f"[YENİ] [{source_name}]"
+                extinf_clean = re.sub(r'group-title="[^"]*"', f'group-title="*_
