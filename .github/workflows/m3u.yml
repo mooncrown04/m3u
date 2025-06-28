@@ -23,11 +23,6 @@ jobs:
       - name: Install dependencies
         run: pip install --upgrade pip requests pytz
 
-      - name: Create channel list file (örnek)
-        run: |
-          echo "https://ornek.com/list1.m3u" > m3u_kanal_listesi.txt
-          echo "https://ornek.com/list2.m3u" >> m3u_kanal_listesi.txt
-
       - name: Run M3U birlestirici script
         run: python m3u_birlestirici.py
 
