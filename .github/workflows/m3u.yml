@@ -2,7 +2,8 @@ name: M3U Birleştirici
 
 on:
   schedule:
-    # UTC saatine göre 09, 15 ve 21 → Türkiye saatiyle 12, 18 ve 24
+    # Türkiye UTC+3 saat dilimindedir
+    # UTC saatine göre: 09:00, 15:00, 21:00
     - cron: '0 9,15,21 * * *'
   workflow_dispatch:
 
@@ -27,15 +28,18 @@ jobs:
       - name: M3U dosyalarını birleştir
         run: python m3u_birlestirici.py
 
-      - name: Commit ve push (eğer değişiklik varsa)
+      - name: Git Commit ve Push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add birlesik.m3u kayit_json/birlesik_links.json
+
           if git diff --cached --quiet; then
             echo "Değişiklik yok, commit/push yapılmadı."
           else
             git commit -m "Otomatik m3u birleştirme güncellemesi"
+            git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
             git push
+          fi
