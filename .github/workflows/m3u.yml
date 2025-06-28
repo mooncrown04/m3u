@@ -1,42 +1,45 @@
 name: birlestir
 
 on:
-  workflow_dispatch:
+  schedule:
+    - cron: '0 */1 * * *'  # Her saat başı çalışır
+  push:
+    branches:
+      - main
 
 jobs:
-  birlestir:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-24.04
 
     steps:
-      - name: Kodu klonla
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Python'u kur
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
-      - name: Gereksinimleri yükle
-        run: |
-          pip install --upgrade pip requests
+      - name: Install dependencies
+        run: pip install --upgrade pip requests
 
-      - name: m3u_kanal_listesi.txt oluştur
+      - name: Create channel list file
         run: |
           echo "https://ornek.com/list1.m3u" > m3u_kanal_listesi.txt
           echo "https://ornek.com/list2.m3u" >> m3u_kanal_listesi.txt
 
-      - name: Python scriptini çalıştır
+      - name: Run M3U birlestirici script
         run: python m3u_birlestirici.py
 
-      - name: Git ayarları
+      - name: Commit changes if any
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
+          git add birlesik.m3u
+          if [ -f kayit_json/birlesik_links.json ]; then
+            git add kayit_json/birlesik_links.json
+          fi
+          git diff --cached --quiet || git commit -m "Otomatik güncelleme: birlesik dosyalar"
 
-      - name: Değişiklikleri commit et
-        run: |
-          git add birlesik.m3u kayit_json/birlesik_links.json
-          git commit -m "Otomatik güncelleme: birlesik dosyalar" || echo "Değişiklik yok"
-
-      - name: Değişiklikleri pushla
+      - name: Push changes
         run: git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
