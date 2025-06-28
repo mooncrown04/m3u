@@ -141,8 +141,10 @@ with open(birlesik_dosya, "w", encoding="utf-8") as outfile:
             extinf_clean = re.sub(r',.*', f',{kanal_isim}', extinf_clean)
             normal_grup_satirlari.append((extinf_clean, url))
 
-       if normal_grup_satirlari:
-    outfile.write(f'#EXTINF:-1 group-title="[{source_name}]",\n')
-    for extinf, url in normal_grup_satirlari:
-        outfile.write(extinf + "\n")
-        outfile.write(url + "\n")
+        if normal_grup_satirlari:
+            outfile.write(f'#EXTINF:-1 group-title="[{source_name}]",\n')
+            for extinf, url in normal_grup_satirlari:
+                outfile.write(extinf + "\n")
+                outfile.write(url + "\n")
+
+save_json(ana_link_dict, ana_kayit_json)
