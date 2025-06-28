@@ -46,7 +46,7 @@ today = today_obj.strftime("%Y-%m-%d")
 now_full = now_turkey().strftime("%Y-%m-%d %H:%M:%S")
 
 # Ana JSON dosyasını yükle
-ana_link_dict = load_json(ana_kayit_json)
+ana_link_dict = load_json(kayit_json)
 
 with open(birlesik_dosya, "w", encoding="utf-8") as outfile:
     outfile.write("#EXTM3U\n")
