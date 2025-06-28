@@ -1,95 +1,126 @@
-import os
 import requests
-import json
+import os
 import re
+import json
+from datetime import datetime
+try:
+    from zoneinfo import ZoneInfo  # Python 3.9+
+except ImportError:
+    from pytz import timezone as ZoneInfo  # fallback için pytz olabilir
 
-# Kaynak URL'lerin bulunduğu dosya
-URL_LIST_FILE = 'm3u_kanal_listesi.txt'
+# Türkiye saat dilimini ayarla
+try:
+    TURKEY_TZ = ZoneInfo("Europe/Istanbul")
+except Exception:
+    # fallback UTC+3 sabit offset yapabiliriz:
+    from datetime import timezone, timedelta
+    TURKEY_TZ = timezone(timedelta(hours=3))
 
-# Kayıt klasörü ve dosyaları
-OUTPUT_FILE = 'birlesik.m3u'
-JSON_FOLDER = 'kayit_json'
-JSON_OUTPUT_FILE = os.path.join(JSON_FOLDER, 'birlesik_links.json')
+def now_turkey():
+    return datetime.now(TURKEY_TZ)
 
-# Klasör yoksa oluştur
-os.makedirs(JSON_FOLDER, exist_ok=True)
+# Virgül temizleyici, kanallarda virgül problem yapar, burada virgülü boşlukla değiştiriyoruz
+def clean_channel_name(name):
+    return name.replace(",", " ").strip()
 
-# Dosya varsa sil
-if os.path.exists(OUTPUT_FILE):
-    os.remove(OUTPUT_FILE)
-if os.path.exists(JSON_OUTPUT_FILE):
-    os.remove(JSON_OUTPUT_FILE)
+# extract_channel_key içinde kanal adı temizleniyor
+def extract_channel_key(extinf_line, url_line):
+    match = re.match(r'#EXTINF:.*?,(.*)', extinf_line)
+    channel_name = clean_channel_name(match.group(1)) if match else ''
+    url = url_line.strip()
+    return (channel_name, url)
 
-# JSON kayıt listesi (detaylı)
-kayitli_kanallar = []
+# Tarih format fonksiyonları değişmedi ama artık Türkiye saatine göre kullanacağız
+def format_tr_date(date_str):
+    d = datetime.strptime(date_str, "%Y-%m-%d")
+    return f"{d.day}.{d.month}.{d.year}"
 
-def temizle_logo(logo_url):
-    return logo_url.replace(',', '')
+def format_tr_datehour(date_str):
+    d = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+    return f"{d.day}.{d.month}.{d.year} {d.hour:02d}:{d.minute:02d}"
 
-def parse_extinf(line):
-    # Örnek #EXTINF:-1 tvg-id="id" tvg-name="name" tvg-logo="logo" group-title="group",Kanal Adı
-    # regex ile çekiyoruz
-    pattern = r'#EXTINF:-?\d+((?: [^=]+="[^"]*")*),(.+)'
-    match = re.match(pattern, line)
-    if not match:
-        return None
-    attrs_str = match.group(1)
-    kanal_adi = match.group(2).strip()
+# ensure_group_title fonksiyonuna dokunmadım, olduğu gibi kullandım
 
-    attrs = {}
-    attr_pattern = r' ([^=]+)="([^"]*)"'
-    for m in re.finditer(attr_pattern, attrs_str):
-        key = m.group(1)
-        value = m.group(2)
-        if key == 'tvg-logo':
-            value = temizle_logo(value)
-        attrs[key] = value
+today_obj = now_turkey().date()  # sadece tarih kısmı
+today = today_obj.strftime("%Y-%m-%d")
+now_full = now_turkey().strftime("%Y-%m-%d %H:%M:%S")
 
-    return kanal_adi, attrs
+# Ana JSON dosyasını yükle
+ana_link_dict = load_json(ana_kayit_json)
 
-with open(URL_LIST_FILE, 'r', encoding='utf-8') as url_file:
-    urls = [url.strip() for url in url_file.readlines() if url.strip()]
-
-with open(OUTPUT_FILE, 'w', encoding='utf-8') as outfile:
-    outfile.write('#EXTM3U\n')
-
-    for url in urls:
+with open(birlesik_dosya, "w", encoding="utf-8") as outfile:
+    outfile.write("#EXTM3U\n")
+    for m3u_url, source_name in m3u_sources:
         try:
-            response = requests.get(url, timeout=10)
-            response.encoding = 'utf-8'
-            if response.status_code == 200:
-                lines = response.text.splitlines()
-                for i in range(len(lines)):
-                    line = lines[i].strip()
-                    if line.startswith('#EXTINF:'):
-                        if i + 1 < len(lines):
-                            next_line = lines[i + 1].strip()
-                            parse_result = parse_extinf(line)
-                            if parse_result is None:
-                                continue
-                            kanal_adi, attrs = parse_result
-
-                            # Aynı kanal adı varsa geç
-                            if any(k['kanal_adi'] == kanal_adi for k in kayitli_kanallar):
-                                continue
-
-                            # Kaydet
-                            # Önce temizlenmiş satırı tekrar oluştur
-                            attr_str = ''.join([f' {k}="{v}"' for k, v in attrs.items()])
-                            yeni_extinf = f'#EXTINF:-1{attr_str},{kanal_adi}'
-
-                            outfile.write(yeni_extinf + '\n')
-                            outfile.write(next_line + '\n')
-
-                            kayitli_kanallar.append({
-                                "kanal_adi": kanal_adi,
-                                **attrs,
-                                "url": next_line
-                            })
-
+            req = requests.get(m3u_url, timeout=20)
+            req.raise_for_status()
         except Exception as e:
-            print(f"Hata ({url}): {e}")
+            print(f"{m3u_url} alınamadı: {e}")
+            continue
+        lines = req.text.splitlines()
+        kanal_list = parse_m3u_lines(lines)
 
-# JSON'a yaz
-with open(JSON_OUTPUT_FILE, 'w', encoding='utf-8') as json_file:
-    json.dump(kayitli_kanallar, json_file, ensure_ascii=False, indent=2)
+        yeni_kanallar, eski_kanallar = [], []
+
+        for (key, extinf, url) in kanal_list:
+            dict_key = f"{key[0]}|{key[1]}"
+            extinf = ensure_group_title(extinf, source_name)
+
+            if dict_key in ana_link_dict:
+                ilk_tarih = ana_link_dict[dict_key]["tarih"]
+                ilk_tarih_saat = ana_link_dict[dict_key]["tarih_saat"]
+                eski_kanallar.append((key, extinf, url, ilk_tarih, ilk_tarih_saat))
+            else:
+                ana_link_dict[dict_key] = {"tarih": today, "tarih_saat": now_full}
+                yeni_kanallar.append((key, extinf, url, today, now_full))
+
+        # Yeni kanal yazımı
+        yeni_grup_satirlari = []
+        for (key, extinf, url, eklenme_tarihi, eklenme_tarihi_saat) in yeni_kanallar:
+            ilk_ad = clean_channel_name(key[0])
+            saat_str = format_tr_datehour(eklenme_tarihi_saat)
+            group_title = f'[YENİ] [{source_name}]'
+            kanal_isim = f'{ilk_ad} [{saat_str}]'
+            extinf_clean = re.sub(r'group-title="[^"]*"', f'group-title="{group_title}"', extinf)
+            extinf_clean = re.sub(r',.*', f',{kanal_isim}', extinf_clean)
+            yeni_grup_satirlari.append((extinf_clean, url))
+
+        if yeni_grup_satirlari:
+            outfile.write(f'#EXTINF:-1 group-title="[YENİ] [{source_name}]",\n')
+            for extinf, url in yeni_grup_satirlari:
+                outfile.write(extinf + "\n")
+                outfile.write(url + "\n")
+
+        # Normal grup yazımı
+        normal_grup_satirlari = []
+        for (key, extinf, url, eklenme_tarihi, eklenme_tarihi_saat) in eski_kanallar:
+            ilk_ad = clean_channel_name(key[0])
+            tarih_obj = datetime.strptime(eklenme_tarihi, "%Y-%m-%d").date()
+            tarih_str = format_tr_date(eklenme_tarihi)
+            original_group = get_original_group_title(extinf)
+
+            if (today_obj - tarih_obj).days >= 7:
+                if original_group and f"[{source_name}]" not in original_group:
+                    new_group_title = f'{original_group}[{source_name}]'
+                else:
+                    new_group_title = f'{source_name}'
+                extinf_clean = re.sub(r'group-title="[^"]*"', f'group-title="{new_group_title}"', extinf)
+                kanal_isim = f'{ilk_ad} [{tarih_str}]'
+            else:
+                saat_str = format_tr_datehour(eklenme_tarihi_saat)
+                group_title = f'[YENİ] [{source_name}]'
+                extinf_clean = re.sub(r'group-title="[^"]*"', f'group-title="{group_title}"', extinf)
+                kanal_isim = f'{ilk_ad} [{saat_str}]'
+
+            extinf_clean = re.sub(r',.*', f',{kanal_isim}', extinf_clean)
+            normal_grup_satirlari.append((extinf_clean, url))
+
+        if normal_grup_satirlari:
+            outfile.write(f'#EXTINF:-1 group-title="[{source_name}]",\n')
+            for extinf, url in normal_grup_satirlari:
+                outfile.write(extinf + "\n")
+                outfile.write(url + "\n")
+
+# Ana JSON dosyasını kaydet
+save_json(ana_link_dict, ana_kayit_json)
+print(f"Kayıt dosyası güncellendi: {ana_kayit_json}")
