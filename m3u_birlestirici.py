@@ -23,33 +23,39 @@ def group_title_guncelle(extinf, source_name):
     # group-title doluysa dokunma
     return extinf
 
-# Örnek fonksiyon, M3U linklerinden çekme ve birleştirme burada olur
 def m3u_birlestir():
-    # Örnek, kaynak isimleri ve url listesi
     kaynaklar = {
         "Kaynak1": "https://example.com/m3u1.m3u",
         "Kaynak2": "https://example.com/m3u2.m3u"
     }
     
-    birlesik_list = []
+    birlesik_list = ['#EXTM3U']
     links_json = {}
-    bugun = datetime.datetime.now(TR_TZ).date()
+    bugun = datetime.datetime.now(TR_TZ)
 
     for source_name, url in kaynaklar.items():
         response = requests.get(url)
         icerik = response.text.splitlines()
         
-        for line in icerik:
+        for i, line in enumerate(icerik):
             if line.startswith('#EXTINF'):
-                # extinf satırına group-title kontrolü uygula
+                # group-title kontrolü uygula
                 line = group_title_guncelle(line, source_name)
-                # Tarih veya saat bilgisi eklemek istersen burada yapabilirsin
-                # Örnek: kanal ismi içine tarih ekle
-                # ...
+
+                # Örnek: kanal başlığına tarih ve saat ekleme
+                # #EXTINF:-1, kanaladı -> #EXTINF:-1, kanaladı [28.06 14:30]
+                parts = line.split(',', 1)
+                if len(parts) == 2:
+                    tarih_saat = format_tr_datehour(bugun)
+                    # Zaten tarih yoksa ekle
+                    if tarih_saat not in parts[1]:
+                        parts[1] = f"{parts[1].strip()} [{tarih_saat}]"
+                    line = ','.join(parts)
+
             birlesik_list.append(line)
         links_json[source_name] = url
 
-    # Dosyalara yazma
+    # Dosyaya yaz
     with open('birlesik.m3u', 'w', encoding='utf-8') as f:
         f.write('\n'.join(birlesik_list))
 
