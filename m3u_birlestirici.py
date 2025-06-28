@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 import pytz
 
-# Kaynak M3U dosyaları (URL, kaynak adı)
+# Kaynak M3U dosyaları
 m3u_sources = [
     ("https://dl.dropbox.com/scl/fi/dj74gt6awxubl4yqoho07/github.m3u?rlkey=m7pzzvk27d94bkfl9a98tluai", "moon"),
     ("https://raw.githubusercontent.com/Lunedor/iptvTR/refs/heads/main/FilmArsiv.m3u", "iptvTR"),
@@ -17,13 +17,8 @@ birlesik_dosya = "birlesik.m3u"
 kayit_json_dir = "kayit_json"
 kayit_json = os.path.join(kayit_json_dir, "birlesik_links.json")
 
-# Klasör yoksa oluştur
 if not os.path.exists(kayit_json_dir):
     os.makedirs(kayit_json_dir)
-
-def turkiye_saati():
-    tr_tz = pytz.timezone("Europe/Istanbul")
-    return datetime.now(tr_tz).strftime("%Y-%m-%d %H:%M:%S")
 
 def extract_channel_key(extinf_line, url_line):
     match = re.match(r'#EXTINF:.*?,(.*)', extinf_line)
@@ -57,33 +52,41 @@ def save_json(data, filename):
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 def ensure_group_title(extinf_line, source_name):
-    # GROUP-TITLE yoksa ekle
-    if 'group-title="' not in extinf_line:
-        return re.sub(r'(#EXTINF:-1)', r'\1 group-title="{}"'.format(source_name), extinf_line)
+    if 'group-title' not in extinf_line:
+        extinf_line = extinf_line.replace("#EXTINF:", f"#EXTINF:-1 group-title=\"{source_name}\"", 1)
     return extinf_line
 
-# Mevcut veriyi yükle
-json_kayit = load_json(kayit_json)
-tum_kanallar = []
-yeni_json_kayit = {}
+# Saat ayarı Türkiye'ye göre
+now_tr = datetime.now(pytz.timezone("Europe/Istanbul"))
+timestamp = now_tr.strftime("%Y-%m-%d %H:%M:%S")
 
-for url, kaynak_adi in m3u_sources:
+birlesik_satirlar = ["#EXTM3U"]
+kayitlar = load_json(kayit_json)
+
+for url, source in m3u_sources:
     try:
-        yanit = requests.get(url, timeout=10)
-        yanit.raise_for_status()
-        satirlar = yanit.text.strip().splitlines()
-        kanallar = parse_m3u_lines(satirlar)
+        response = requests.get(url, timeout=10)
+        lines = response.text.strip().splitlines()
+        kanallar = parse_m3u_lines(lines)
 
-        for key, extinf, stream_url in kanallar:
-            extinf = ensure_group_title(extinf, kaynak_adi)
-            kanal_key = f"{key[0]}|{key[1]}"
-            yeni_json_kayit[kanal_key] = {
-                "kaynak": kaynak_adi,
-                "eklenme": turkiye_saati()
+        for (key, extinf, link) in kanallar:
+            extinf = ensure_group_title(extinf, source)
+            birlesik_satirlar.append(extinf)
+            birlesik_satirlar.append(link)
+
+            key_str = f"{key[0]}|{key[1]}"
+            kayitlar[key_str] = {
+                "kanal": key[0],
+                "url": key[1],
+                "kaynak": source,
+                "eklenme": timestamp
             }
-            tum_kanallar.append((extinf, stream_url))
 
     except Exception as e:
-        print(f"Hata ({kaynak_adi}): {e}")
+        print(f"{source} kaynağı indirilemedi: {e}")
 
-# Çık
+with open(birlesik_dosya, "w", encoding="utf-8") as f:
+    f.write("\n".join(birlesik_satirlar))
+
+save_json(kayitlar, kayit_json)
+print(f"Toplam kanal sayısı: {len(kayitlar)}")
