@@ -65,10 +65,11 @@ def set_group_title(extinf, new_group):
 def set_channel_name(extinf, new_name):
     return re.sub(r',.*', f',{new_name}', extinf)
 
-now = datetime.now()
-today_str = now.strftime("%Y-%m-%d")
-today_obj = datetime.strptime(today_str, "%Y-%m-%d")
-now_str = now.strftime("%Y-%m-%d %H:%M:%S")
+tr_timezone = pytz.timezone("Europe/Istanbul")
+now = datetime.now(tr_timezone)
+today = now.strftime("%Y-%m-%d")
+now_full = now.strftime("%Y-%m-%d %H:%M:%S")
+today_obj = datetime.strptime(today, "%Y-%m-%d")
 ana_link_dict = load_json(ana_kayit_json)
 
 with open(birlesik_dosya, "w", encoding="utf-8") as f:
