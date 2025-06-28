@@ -3,6 +3,7 @@ import os
 import re
 import json
 from datetime import datetime
+import pytz
 
 # Kaynak M3U dosyaları (URL, kaynak adı)
 m3u_sources = [
@@ -16,10 +17,14 @@ birlesik_dosya = "birlesik.m3u"
 kayit_json_dir = "kayit_json"
 kayit_json = os.path.join(kayit_json_dir, "birlesik_links.json")
 
+# Klasör yoksa oluştur
 if not os.path.exists(kayit_json_dir):
     os.makedirs(kayit_json_dir)
 
-# Yardımcı fonksiyonlar
+def turkiye_saati():
+    tr_tz = pytz.timezone("Europe/Istanbul")
+    return datetime.now(tr_tz).strftime("%Y-%m-%d %H:%M:%S")
+
 def extract_channel_key(extinf_line, url_line):
     match = re.match(r'#EXTINF:.*?,(.*)', extinf_line)
     channel_name = match.group(1).strip() if match else ''
@@ -51,14 +56,34 @@ def save_json(data, filename):
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-def format_tr_date(date_str):
-    d = datetime.strptime(date_str, "%Y-%m-%d")
-    return f"{d.day}.{d.month}.{d.year}"
-
-def format_tr_datehour(date_str):
-    d = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
-    return f"{d.day}.{d.month}.{d.year} {d.hour:02d}:{d.minute:02d}"
-
 def ensure_group_title(extinf_line, source_name):
-    # Virgül temizliği (gereksiz çift virgülleri kaldır)
-    extinf_line = extinf_line.replace(",,", ",").replace(", ,", ",").strip()
+    # GROUP-TITLE yoksa ekle
+    if 'group-title="' not in extinf_line:
+        return re.sub(r'(#EXTINF:-1)', r'\1 group-title="{}"'.format(source_name), extinf_line)
+    return extinf_line
+
+# Mevcut veriyi yükle
+json_kayit = load_json(kayit_json)
+tum_kanallar = []
+yeni_json_kayit = {}
+
+for url, kaynak_adi in m3u_sources:
+    try:
+        yanit = requests.get(url, timeout=10)
+        yanit.raise_for_status()
+        satirlar = yanit.text.strip().splitlines()
+        kanallar = parse_m3u_lines(satirlar)
+
+        for key, extinf, stream_url in kanallar:
+            extinf = ensure_group_title(extinf, kaynak_adi)
+            kanal_key = f"{key[0]}|{key[1]}"
+            yeni_json_kayit[kanal_key] = {
+                "kaynak": kaynak_adi,
+                "eklenme": turkiye_saati()
+            }
+            tum_kanallar.append((extinf, stream_url))
+
+    except Exception as e:
+        print(f"Hata ({kaynak_adi}): {e}")
+
+# Çık
