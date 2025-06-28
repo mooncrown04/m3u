@@ -90,8 +90,8 @@ with open(birlesik_dosya, "w", encoding="utf-8") as f:
         for (key, extinf, url) in entries:
             kanal_key = f"{key[0]}|{key[1]}"
             if kanal_key not in ana_link_dict:
-                ana_link_dict[kanal_key] = {"tarih": today_str, "tarih_saat": now_str}
-                yeni.append((key, extinf, url, today_str, now_str))
+                ana_link_dict[kanal_key] = {"tarih": today, "tarih_saat": now_full}
+                yeni.append((key, extinf, url, today_str, now_full))
             else:
                 kayit = ana_link_dict[kanal_key]
                 eski.append((key, extinf, url, kayit["tarih"], kayit["tarih_saat"]))
