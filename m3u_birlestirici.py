@@ -1,82 +1,67 @@
-import requests
 import os
-import re
+import requests
 import json
-from datetime import datetime, timezone, timedelta
 
-# M3U kaynak listesi
-m3u_sources = [
-    ("https://dl.dropbox.com/scl/fi/dj74gt6awxubl4yqoho07/github.m3u?rlkey=m7pzzvk27d94bkfl9a98tluai", "moon"),
-    ("https://raw.githubusercontent.com/Lunedor/iptvTR/refs/heads/main/FilmArsiv.m3u", "iptvTR"),
-    ("https://raw.githubusercontent.com/Zerk1903/zerkfilm/refs/heads/main/Filmler.m3u", "zerkfilm"),
-    ("https://tinyurl.com/2ao2rans", "powerboard"),
-]
+# Kaynak URL'lerin bulunduğu dosya
+URL_LIST_FILE = 'm3u_kanal_listesi.txt'
 
-# Çıktı dosyaları
-birlesik_dosya = "birlesik.m3u"
-kayit_json_dir = "kayit_json"
-ana_kayit_json = os.path.join(kayit_json_dir, "birlesik_links.json")
+# Kayıt klasörü ve dosyaları
+OUTPUT_FILE = 'birlesik.m3u'
+JSON_FOLDER = 'kayit_json'
+JSON_OUTPUT_FILE = os.path.join(JSON_FOLDER, 'birlesik_links.json')
 
-# Türkiye saat dilimi
-turkiye_saati = timezone(timedelta(hours=3))
-now = datetime.now(turkiye_saati)
-today = now.strftime("%Y-%m-%d")
-now_full = now.strftime("%Y-%m-%d %H:%M:%S")
-today_obj = datetime.strptime(today, "%Y-%m-%d")
+# Klasör yoksa oluştur
+os.makedirs(JSON_FOLDER, exist_ok=True)
 
-# Gerekli klasör yoksa oluştur
-if not os.path.exists(kayit_json_dir):
-    os.makedirs(kayit_json_dir)
+# Dosya varsa sil
+if os.path.exists(OUTPUT_FILE):
+    os.remove(OUTPUT_FILE)
+if os.path.exists(JSON_OUTPUT_FILE):
+    os.remove(JSON_OUTPUT_FILE)
 
-def extract_channel_key(extinf_line, url_line):
-    match = re.match(r'#EXTINF:.*?,(.*)', extinf_line)
-    channel_name = match.group(1).strip() if match else ''
-    url = url_line.strip()
-    return (channel_name, url)
+# JSON kayıt listesi
+kayitli_kanallar = []
 
-def parse_m3u_lines(lines):
-    kanal_list = []
-    i = 0
-    while i < len(lines):
-        line = lines[i].strip()
-        if line.startswith("#EXTINF"):
-            extinf_line = line
-            if i + 1 < len(lines):
-                url_line = lines[i + 1].strip()
-                kanal_list.append((extract_channel_key(extinf_line, url_line), extinf_line, url_line))
-            i += 2
-        else:
-            i += 1
-    return kanal_list
+with open(URL_LIST_FILE, 'r', encoding='utf-8') as url_file:
+    urls = [url.strip() for url in url_file.readlines() if url.strip()]
 
-def load_json(filename):
-    if os.path.exists(filename):
-        with open(filename, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
+with open(OUTPUT_FILE, 'w', encoding='utf-8') as outfile:
+    outfile.write('#EXTM3U\n')
 
-def save_json(data, filename):
-    with open(filename, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    for url in urls:
+        try:
+            response = requests.get(url, timeout=10)
+            response.encoding = 'utf-8'
+            if response.status_code == 200:
+                lines = response.text.splitlines()
+                for i in range(len(lines)):
+                    line = lines[i].strip()
+                    if line.startswith('#EXTINF:'):
+                        # Sonraki satırda link olmalı
+                        if i + 1 < len(lines):
+                            next_line = lines[i + 1].strip()
+                            kanal_adi = line.split(',')[-1].strip()
 
-def format_tr_date(date_str):
-    d = datetime.strptime(date_str, "%Y-%m-%d")
-    return f"{d.day}.{d.month}.{d.year}"
+                            # Aynı kanal adı varsa geç
+                            if kanal_adi in kayitli_kanallar:
+                                continue
 
-def format_tr_datehour(date_str):
-    d = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
-    return f"{d.day}.{d.month}.{d.year} {d.hour:02d}:{d.minute:02d}"
+                            # tvg-logo içinde virgül varsa temizle
+                            if 'tvg-logo="' in line:
+                                start = line.find('tvg-logo="') + 10
+                                end = line.find('"', start)
+                                logo_url = line[start:end]
+                                logo_url_clean = logo_url.replace(',', '')
+                                line = line[:start] + logo_url_clean + line[end:]
 
-def ensure_group_title(extinf_line, source_name):
-    if 'group-title="' not in extinf_line:
-        parts = extinf_line.split(" ", 1)
-        if len(parts) == 2:
-            prefix, rest = parts
-            return f'{prefix} group-title="[{source_name}]" {rest}'
-        else:
-            return f'#EXTINF:-1 group-title="[{source_name}]", Kanal İsimsiz'
-    return extinf_line
+                            # Kaydet
+                            outfile.write(line + '\n')
+                            outfile.write(next_line + '\n')
 
-def get_original_group_title(extinf_line):
-    m = re.search(r'group-title="([^"]*)"', extinf_line)
-    retu
+                            kayitli_kanallar.append(kanal_adi)
+        except Exception as e:
+            print(f"Hata ({url}): {e}")
+
+# JSON'a yaz
+with open(JSON_OUTPUT_FILE, 'w', encoding='utf-8') as json_file:
+    json.dump(kayitli_kanallar, json_file, ensure_ascii=False, indent=2)
