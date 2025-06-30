@@ -2,7 +2,7 @@ import requests
 import os
 import re
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 import pytz
 
 m3u_sources = [
@@ -96,6 +96,7 @@ with open(birlesik_dosya, "w", encoding="utf-8") as f:
                 kayit = ana_link_dict[kanal_key]
                 eski.append((key, extinf, url, kayit["tarih"], kayit["tarih_saat"]))
 
+        # --- YENİLER ---
         if yeni:
             f.write(f'#EXTINF:-1 group-title="[YENİ] [{source_name}]",\n')
             for (key, extinf, url, tarih, tarih_saat) in yeni:
@@ -105,29 +106,23 @@ with open(birlesik_dosya, "w", encoding="utf-8") as f:
                 extinf = set_channel_name(extinf, kanal_adi)
                 f.write(extinf + "\n" + url + "\n")
 
-        normal = []
+        # --- ESKİLER ---
         for (key, extinf, url, tarih, tarih_saat) in eski:
             eklenme = datetime.strptime(tarih, "%Y-%m-%d")
-            guncel_group = get_group_title(extinf)
             kanal_adi = f"{key[0]} [{format_date_tr(eklenme)}]"
+            guncel_group = get_group_title(extinf)
 
             if (today_obj - eklenme).days < 7:
                 saat_str = format_datehour_tr(datetime.strptime(tarih_saat, "%Y-%m-%d %H:%M:%S"))
                 extinf = set_group_title(extinf, f"[YENİ] [{source_name}]")
                 extinf = set_channel_name(extinf, f"{key[0]} [{saat_str}]")
             else:
-                if not guncel_group:
-                    extinf = set_group_title(extinf, source_name)
-                elif guncel_group.strip() == "":
+                if not guncel_group or guncel_group.strip() == "":
                     extinf = set_group_title(extinf, source_name)
                 elif f"[{source_name}]" not in guncel_group:
                     extinf = set_group_title(extinf, f"{guncel_group}[{source_name}]")
                 extinf = set_channel_name(extinf, kanal_adi)
-            normal.append((extinf, url))
-
-        if normal:
-            f.write(f'#EXTINF:-1 group-title="[{source_name}]",\n')
-            for extinf, url in normal:
-                f.write(extinf + "\n" + url + "\n")
+            f.write(extinf + "\n" + url + "\n")
 
 save_json(ana_link_dict, ana_kayit_json)
+print(f"Kayıt dosyası güncellendi: {ana_kayit_json}")
