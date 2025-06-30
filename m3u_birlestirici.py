@@ -96,33 +96,50 @@ with open(birlesik_dosya, "w", encoding="utf-8") as f:
                 kayit = ana_link_dict[kanal_key]
                 eski.append((key, extinf, url, kayit["tarih"], kayit["tarih_saat"]))
 
-        # --- YENİLER ---
+        # Yeni kanallar (eklenme günü)
         if yeni:
-            f.write(f'#EXTINF:-1 group-title="[YENİ] [{source_name}]",\n')
+            f.write(f'#EXTINF:-1 group-title="[🟡YENİ] [{source_name}]",\n')
             for (key, extinf, url, tarih, tarih_saat) in yeni:
                 saat_str = format_datehour_tr(datetime.strptime(tarih_saat, "%Y-%m-%d %H:%M:%S"))
                 kanal_adi = f"{key[0]} [{saat_str}]"
-                extinf = set_group_title(extinf, f"[YENİ] [{source_name}]")
+                extinf = set_group_title(extinf, f"[🟡YENİ] [{source_name}]")
                 extinf = set_channel_name(extinf, kanal_adi)
                 f.write(extinf + "\n" + url + "\n")
 
-        # --- ESKİLER ---
+        normal = []
         for (key, extinf, url, tarih, tarih_saat) in eski:
             eklenme = datetime.strptime(tarih, "%Y-%m-%d")
+            fark_gun = (today_obj - eklenme).days
             kanal_adi = f"{key[0]} [{format_date_tr(eklenme)}]"
             guncel_group = get_group_title(extinf)
 
-            if (today_obj - eklenme).days < 7:
+            if fark_gun == 0:
+                # Aynı gün, yeni kanal (eğer yanlışlıkla buraya geldiyse, [🟡YENİ] zaten yazıldı, burada da yazalım)
+                saat_str = format_datehour_tr(datetime.strptime(tarih_saat, "%Y-%m-%d %H:%M:%S"))
+                extinf = set_group_title(extinf, f"[🟡YENİ] [{source_name}]")
+                extinf = set_channel_name(extinf, f"{key[0]} [{saat_str}]")
+
+            elif 0 < fark_gun < 7:
+                # 1. günden 6. güne kadar [YENİ]
                 saat_str = format_datehour_tr(datetime.strptime(tarih_saat, "%Y-%m-%d %H:%M:%S"))
                 extinf = set_group_title(extinf, f"[YENİ] [{source_name}]")
                 extinf = set_channel_name(extinf, f"{key[0]} [{saat_str}]")
+
             else:
-                if not guncel_group or guncel_group.strip() == "":
+                # 7+ gün geçtiyse orijinal grup başlığına dön
+                if not guncel_group:
+                    extinf = set_group_title(extinf, source_name)
+                elif guncel_group.strip() == "":
                     extinf = set_group_title(extinf, source_name)
                 elif f"[{source_name}]" not in guncel_group:
                     extinf = set_group_title(extinf, f"{guncel_group}[{source_name}]")
                 extinf = set_channel_name(extinf, kanal_adi)
-            f.write(extinf + "\n" + url + "\n")
+
+            normal.append((extinf, url))
+
+        if normal:
+            f.write(f'#EXTINF:-1 group-title="[{source_name}]",\n')
+            for extinf, url in normal:
+                f.write(extinf + "\n" + url + "\n")
 
 save_json(ana_link_dict, ana_kayit_json)
-print(f"Kayıt dosyası güncellendi: {ana_kayit_json}")
