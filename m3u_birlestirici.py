@@ -96,11 +96,11 @@ with open(birlesik_dosya, "w", encoding="utf-8") as f:
                 kayit = ana_link_dict[kanal_key]
                 eski.append((key, extinf, url, kayit["tarih"], kayit["tarih_saat"]))
 
-        # Yeni kanallar yazılır (1 hafta boyunca 🟡YENİ)
+        # Yeni kanallar yazılır (1 hafta boyunca ✨YENİ)
         for (key, extinf, url, tarih, tarih_saat) in yeni:
             saat_str = format_datehour_tr(datetime.strptime(tarih_saat, "%Y-%m-%d %H:%M:%S"))
             kanal_adi = f"{key[0]} [{saat_str}]"
-            extinf = set_group_title(extinf, f"🟡YENİ [{source_name}]")
+            extinf = set_group_title(extinf, f"✨YENİ [{source_name}]")
             extinf = set_channel_name(extinf, kanal_adi)
             f.write(extinf + "\n" + url + "\n")
 
@@ -114,7 +114,7 @@ with open(birlesik_dosya, "w", encoding="utf-8") as f:
             if fark_gun < 7:
                 # 1 haftadan azsa yeni olarak işaretle
                 saat_str = format_datehour_tr(datetime.strptime(tarih_saat, "%Y-%m-%d %H:%M:%S"))
-                extinf = set_group_title(extinf, f"🟡YENİ [{source_name}]")
+                extinf = set_group_title(extinf, f"✨YENİ [{source_name}]")
                 extinf = set_channel_name(extinf, f"{key[0]} [{saat_str}]")
             else:
                 # 7 gün ve üstü ise orijinal grup başlığı + kaynak adı
