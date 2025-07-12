@@ -17683,14 +17683,6 @@ https://vidmody.com/vs/tt1980209
 https://vidmody.com/vs/tt0095016
 #EXTINF:-1 tvg-logo="https://m.media-amazon.com/images/M/MV5BNDJmNmRhNjUtN2I4Yi00MjgzLWFlN2EtZTYzOTFiYzE1MGVjXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg"group-title="2025[zerkfilm]",Zümrüt Şehrin Büyücüsü Bölüm 1 2025 [28.06.2025]
 https://vidmody.com/vs/tt24218194
-#EXTINF:0 type="video" tvg-logo="https://turkcealtyazi.org/film/200/6300910.jpg" group-title="✨YENİ [powerboard]",The Unholy Trinity (2024) [12.07.2025 15:21]
-https://vidmody.com/vs/tt6300910/
-#EXTINF:0 type="video" tvg-logo="https://m.media-amazon.com/images/M/MV5BYjczNWMxNGEtNTI0ZC00ZjQ3LTk1MzktNzBkYmYxZTcwNjJiXkEyXkFqcGc@._V1_.jpg" group-title="✨YENİ [powerboard]",Zorlu Ev:Hard Home (2024) [12.07.2025 15:21]
-https://vidmody.com/vs/tt31974111/
-#EXTINF:0 type="video" tvg-logo="https://turkcealtyazi.org/film/200/29424168.jpg" group-title="✨YENİ [powerboard]",Inside (2024) [12.07.2025 15:21]
-https://vidmody.com/vs/tt29424168/
-#EXTINF:0 type="video" tvg-logo="https://turkcealtyazi.org/film/200/5402714.jpg" group-title="✨YENİ [powerboard]",Öbür Dünyadan : Here After (2024) [12.07.2025 15:21]
-https://vidmody.com/vs/tt5402714/
 #EXTINF:0 type="video" tvg-logo="https://turkcealtyazi.org/film/200/6661616.jpg" group-title="✨YENİ [powerboard]",Dedektif Sun ve Ekibi: Kurtarma Operasyonu (2022) [08.07.2025 14:11]
 https://vidmody.com/vs/tt6661616/
 #EXTINF:0 type="video" tvg-logo="https://m.media-amazon.com/images/M/MV5BY2YxNzg4ZmEtNTdjNy00MTQ0LTgyYTQtNDY4NTQ2YjUwNmQ2XkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg" group-title="✨YENİ [powerboard]",Kayara (2025) [08.07.2025 14:11]
@@ -18997,6 +18989,8 @@ https://vidmody.com/mm/tt22717612/main/index.m3u8
 https://vidmody.com/mm/tt19759204/main/index.m3u8
 #EXTINF:0 type="video" tvg-logo="https://tr.web.img4.acsta.net/pictures/18/09/19/16/14/4583643.jpg" group-title="✨YERLI FILM✨[powerboard]",TR Sevgili Komsum (2018) [28.06.2025]
 https://vidmody.com/mm//tt8822370/main/index.m3u8
+#EXTINF:0 type="video" tvg-logo="https://turkcealtyazi.org/film/200/6300910.jpg" group-title="✨YENİ [powerboard]",The Unholy Trinity (2024) [12.07.2025 15:21]
+https://vidmody.com/vs/tt6300910/
 #EXTINF:0 type="video" tvg-logo="https://turkcealtyazi.org/film/200/2494362.jpg" group-title="✨WESTERN✨[powerboard]",Bone Tomahawk:Kemik Balta-Vahşi Batı-Korku-Dram(2015) [28.06.2025]
 https://vidmody.com/mm/tt2494362/main/index.m3u8
 #EXTINF:0 type="video" tvg-logo="https://turkcealtyazi.org/film/200/2582782.jpg" group-title="✨WESTERN✨[powerboard]",Hell or High Water:İki Eli Kanda-Vahşi Batı-Suç-Dram (2016) [28.06.2025]
@@ -25397,6 +25391,12 @@ https://vidmody.com/mm/tt1131724/main/index.m3u8
 https://vidmody.com/mm/tt1221208/main/index.m3u8
 #EXTINF:0 type="video" tvg-logo="https://image.tmdb.org/t/p/w500/ujERk3aKABXU3NDXOAxEQYTHe9A.jpg" group-title="✨YABANCI    ✨TR DBL[powerboard]",10 Things I Hate About You [28.06.2025]
 https://vidmody.com/mm/tt0147800/main/index.m3u8
+#EXTINF:0 type="video" tvg-logo="https://m.media-amazon.com/images/M/MV5BYjczNWMxNGEtNTI0ZC00ZjQ3LTk1MzktNzBkYmYxZTcwNjJiXkEyXkFqcGc@._V1_.jpg" group-title="✨YENİ [powerboard]",Zorlu Ev:Hard Home (2024) [12.07.2025 15:21]
+https://vidmody.com/vs/tt31974111/
+#EXTINF:0 type="video" tvg-logo="https://turkcealtyazi.org/film/200/29424168.jpg" group-title="✨YENİ [powerboard]",Inside (2024) [12.07.2025 15:21]
+https://vidmody.com/vs/tt29424168/
+#EXTINF:0 type="video" tvg-logo="https://turkcealtyazi.org/film/200/5402714.jpg" group-title="✨YENİ [powerboard]",Öbür Dünyadan : Here After (2024) [12.07.2025 15:21]
+https://vidmody.com/vs/tt5402714/
 #EXTINF:0 type="video" tvg-logo="https://turkcealtyazi.org/film/200/32246771.jpg" group-title="✨YENİ [powerboard]",Onu Geri Getir : Bring Her Back (Korku-Gizem)(2025) [11.07.2025 15:24]
 https://vidmody.com/vs/tt32246771/
 #EXTINF:0 type="video" tvg-logo="https://m.media-amazon.com/images/M/MV5BYjg0NTFlMzktYjM3NS00NmI0LTlmZmMtNTVlNWRjMTNlNjRmXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg" group-title="✨YENİ [powerboard]",Yunan (2025) [11.07.2025 15:24]
